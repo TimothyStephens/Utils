@@ -1,0 +1,9 @@
+#!/bin/bash
+
+## run_cmd - print time and command to stdout before running command
+VERSION=0.1
+
+CMD=$@
+echo "[`date`]      CMD: $CMD"
+eval $CMD
+

@@ -1,0 +1,23 @@
+#!/bin/bash
+
+## fu - count the number of files/dirs
+## 
+## Will count the number of files within each dir provided OR counts the number of
+## files in the current dir.
+VERSION=0.1
+
+COMMAND_LINE_OBJECTS=$@
+
+if [ $# -gt 0 ]; then
+	for D in $COMMAND_LINE_OBJECTS;
+	do
+		FILE_COUNT=`find $D | wc -l | awk '{print $1}'`
+		printf "$FILE_COUNT\t$D\n"
+	done
+else
+	FILE_COUNT=`find . | wc -l | awk '{print $1}'`
+	echo "$FILE_COUNT"
+fi
+
+
+

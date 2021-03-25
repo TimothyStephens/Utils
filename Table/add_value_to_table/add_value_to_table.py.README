@@ -1,0 +1,4 @@
+TODO:
+ * Delim input, output, and annot file
+ * Select annot columns to output. 
+ * Stop adding to comment lines.

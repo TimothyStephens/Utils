@@ -1,0 +1,17 @@
+ID1	1	a
+ID1	1	b
+ID1	1	c
+ID1	2	d
+ID1	2	e
+ID1	3	f
+ID1	4	g
+
+ID2	1	h
+ID2	2	i
+ID2	3	j
+ID2	4	k
+
+ID3	1	l
+ID4	1	m
+ID3	1	n
+

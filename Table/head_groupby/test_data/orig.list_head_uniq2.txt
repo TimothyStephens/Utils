@@ -1,0 +1,6 @@
+ID1	1	a
+ID1	2	d
+ID2	1	h
+ID2	2	i
+ID3	1	l
+ID4	1	m

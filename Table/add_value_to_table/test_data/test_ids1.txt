@@ -1,0 +1,3 @@
+pattern1	zz1
+pattern2	zz2
+pattern4	zz4

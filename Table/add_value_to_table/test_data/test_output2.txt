@@ -1,0 +1,5 @@
+name1	pattern1	xx	yy	zz1
+name10	pattern10	xx	yy	NA
+name2	pattern2	xx	yy	zz22
+name4	pattern4	xx	yy	zz4
+name2	pattern2	xx	yy	zz22

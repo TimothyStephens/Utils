@@ -1,0 +1,15 @@
+#!/bin/bash
+
+## ln_loop - link multiple files into the present directory
+VERSION=0.1
+
+if [ $# -gt 0 ]; then
+
+	for F in $@;
+	do
+		ln -s $F
+	done
+else
+	echo -e "ERROR: Need to provide at least one file to link\n\n$0 file [files]\n"
+fi
+

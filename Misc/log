@@ -1,0 +1,7 @@
+#!/bin/bash
+
+## log - print time and log info to stdout
+VERSION=0.1
+
+echo "[`date`]      LOG: $@"
+

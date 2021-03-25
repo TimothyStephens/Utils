@@ -1,0 +1,171 @@
+#!/bin/bash
+
+##################################
+# Manage rsync backup scheduling #
+##################################
+
+set -o pipefail
+BACKUP_SOURCE="/scratch/$USER/"
+DATE_OF_LAST_BACKUP_FILE=".last_backup"
+BACKUP_DESTINATION="timothy@omicsbase.rutgers.edu:/volume1/Timothy/backup/coral.rutgers.edu/"
+MAX_DAYS_SINCE_LAST_BACKUP=6
+
+RSYNC="rsync -ahvP --delete --stats"
+SCREEN_NAME="rsync_scratch_backup"
+SCREEN="screen"
+
+CHECK_DATE_OF_LAST_BACKUP=0
+RUN_BACKUP=0
+RUN_FROM_IN_SCREEN=0
+
+usage() {
+    echo -e "Usage: $(basename "$0") [OPTIONS...]
+Options:
+-c|--check                  check how long it has been since we last backedup (print warning if longer then --max_last_backup)
+-b|--backup                 backup files
+-m|--max_last_backup        <days> since we last backed up our files, affects --backup (default: $MAX_DAYS_SINCE_LAST_BACKUP)
+-s|--backup_source          <base dir to backup> (default: $BACKUP_SOURCE) 
+-d|--backup_destination     <user@server:/backup/dir/> directory to backup to (default: $BACKUP_DESTINATION)
+-v|--verbose                print extra info while running 
+-h|--help|-u|--usage        this help message" 1>&2
+    exit 1
+}
+# Hidden option
+#--backup_inside            actually run backup (-b runs `screen` command and parses this script with the --backup_inside option)
+
+
+# Parse arguments
+while [[ $# > 0 ]]
+do
+    key="$1"
+
+    case $key in
+	-c|--check)
+	    CHECK_DATE_OF_LAST_BACKUP=1
+	    shift
+	    ;;
+	-b|--backup)
+	    RUN_BACKUP=1
+	    shift
+	    ;;
+	--backup_inside)
+	    RUN_BACKUP=1
+	    RUN_FROM_IN_SCREEN=1
+	    shift
+	    ;;
+	-m|--max_last_backup)
+	    MAX_DAYS_SINCE_LAST_BACKUP="$2"
+	    shift
+	    ;;
+	-s|--source)
+	    BACKUP_SOURCE="$2"
+	    shift
+	    ;;
+	-d|--destination)
+	    BACKUP_DESTINATION="$2" 
+	    shift
+	    ;;
+	-v|--verbose)
+	    set -x
+	    ;;    
+	-h|--help|-u|--usage)
+	    usage
+	    ;;
+	*)
+	    echo "Unknown option $1"
+	    usage
+	    ;;
+    esac
+    shift
+done
+
+
+#####################
+## START FUNCTIONS ##
+#####################
+
+# Run backup - if this is the first time the backup function has been run start screen and rerun this script (parsing the --backup_inside option)
+#            - if its the second time (we are now in screen; --backup_inside option has been parsed) run the actual rsync backup.
+run_backup()
+{
+	SLEEP=10
+	DATE_RUN=$(date +%s)
+	EMAIL="ts942@sebs.rutgers.edu"
+        if [ $RUN_FROM_IN_SCREEN -eq 0 ];
+        then
+                $SCREEN -L -Logfile "$BACKUP_SOURCE/.$SCREEN_NAME.screenlog.$DATE_RUN" -S "$SCREEN_NAME" "${0}" -m "$MAX_DAYS_SINCE_LAST_BACKUP" -s "$BACKUP_SOURCE" -d "$BACKUP_DESTINATION" --backup_inside
+        else
+                $RSYNC $BACKUP_SOURCE $BACKUP_DESTINATION
+		if [ "$?" -eq "0" ];
+		then
+			sleep $SLEEP
+			tail -n 20 "$BACKUP_SOURCE/.$SCREEN_NAME.screenlog.$DATE_RUN" | mail -s "[Dell Precision 7920] Rsync Finished!" "$EMAIL"
+			update_date_of_last_backup
+		else
+			sleep $SLEEP
+			tail -n 20 "$BACKUP_SOURCE/.$SCREEN_NAME.screenlog.$DATE_RUN" | mail -s "[Dell Precision 7920] FAILED Rsync backup!" "$EMAIL" 
+		fi
+        fi
+
+}
+
+# Update $DATE_OF_LAST_BACKUP_FILE with todays date and time.
+update_date_of_last_backup()
+{
+	date > $BACKUP_SOURCE/$DATE_OF_LAST_BACKUP_FILE
+}
+
+# Check when we last backed up
+check_date_of_last_backup()
+{
+	BASE_DIRECTORY=$(dirname $BACKUP_SOURCE/$DATE_OF_LAST_BACKUP_FILE)
+	if [ ! -s $BACKUP_SOURCE/$DATE_OF_LAST_BACKUP_FILE ];
+	then
+		echo "ERROR: $BACKUP_SOURCE/$DATE_OF_LAST_BACKUP_FILE file does not exist or is empty. Cannot check date of last backup."
+		exit 1
+	fi
+	
+	local DATE_OF_LAST_BACKUP=`cat $BACKUP_SOURCE/$DATE_OF_LAST_BACKUP_FILE`
+	local DAYS_SINCE_LAST_BACKUP=$((($(date +%s) - $(date --date="$DATE_OF_LAST_BACKUP" +%s)) / 86400))  
+	
+	GREEN='\033[0;32m'
+	RED='\033[0;31m'
+	NC='\033[0m' # No Color
+
+	if [ $DAYS_SINCE_LAST_BACKUP -gt $MAX_DAYS_SINCE_LAST_BACKUP ];
+	then
+		echo -e "${RED}#########################${NC}"
+		echo -e "${RED}######## WARNING ########${NC}"
+		echo -e "${RED}#########################${NC}"
+		echo -e "${RED}# ${NC}"
+		echo -e "${RED}# ${NC}"
+		echo -e "${RED}# $BASE_DIRECTORY was backed up $DAYS_SINCE_LAST_BACKUP days ago (>$MAX_DAYS_SINCE_LAST_BACKUP day max!!)${NC}"
+		echo -e "${RED}# ${NC}"
+		echo -e "${RED}# Run: ${NC}"
+		echo -e "${RED}$0 -s '$BACKUP_SOURCE' -d '$BACKUP_DESTINATION' -b${NC}"
+		echo -e "${RED}# ${NC}"
+		echo -e "${RED}# ${NC}"
+		echo -e "${RED}#########################${NC}"
+		echo -e "${RED}######## WARNING ########${NC}"
+		echo -e "${RED}#########################${NC}"
+	else
+		echo -e "${GREEN}$BASE_DIRECTORY was backed up $DAYS_SINCE_LAST_BACKUP days ago (<=$MAX_DAYS_SINCE_LAST_BACKUP day max). All is good!!${NC}"
+	fi
+}
+
+###################
+## END FUNCTIONS ##
+###################
+
+#backup
+if [ $RUN_BACKUP -eq 1 ];
+then
+	run_backup
+fi
+
+#check
+if [ $CHECK_DATE_OF_LAST_BACKUP -eq 1 ];
+then
+	check_date_of_last_backup
+fi
+

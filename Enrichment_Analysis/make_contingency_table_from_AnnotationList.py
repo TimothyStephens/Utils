@@ -22,6 +22,7 @@ gene2 *tab* annot4
 import sys
 import argparse
 import logging
+import os
 
 ## Pass arguments.
 def main():
@@ -53,8 +54,8 @@ def main():
 	
 	logging.debug('%s', args) ## DEBUG
 	
-	with args.annot as annotFile:
-		annots = load_annots(annotFile)
+	with args.annots as annotsFile:
+		annots = load_annots(annotsFile)
 	with args.targets as targetsFile:
 		target_IDs = load_ids(targetsFile)
 	
@@ -85,8 +86,7 @@ def make_contingency_table(annots, target_IDs, out_fh):
 			NotDomainNotTestCount = not_test_total - not_test_counts[id]
 		
 		out_fh.write('\t'.join([id, str(DomainTestCount), str(DomainNotTestCount), str(NotDomainTestCount), str(NotDomainNotTestCount)]) + '\n')
-	
-	
+
 
 
 def load_counts(annots, sep='\t'):
@@ -94,8 +94,8 @@ def load_counts(annots, sep='\t'):
 	Takes a dict of {gene_id:[annot_ids]} pairs and converst it to {annot_id:count} and also counts total annot_id's seen. 
 	'''
 	combined_annots = []
-	for a in annots:
-		combined_annots.extend(a)
+	for x, y in annots.items():
+		combined_annots.extend(y)
 	counts = {i:combined_annots.count(i) for i in set(combined_annots)}
 	total = sum([x for x in counts.values()])
 	
@@ -142,7 +142,7 @@ def load_annots(fh, delim='\t'):
 		- If a gene_id has multiple of the same annot_id (duplicate annot_id's) then the duplicates are reported.
 		  Assumes you want duplicate IDs reported the number of times they are observed. 
 	'''
-	annots = {}
+	annots_dict = {}
 	for line in fh:
 		line = line.strip()
 		if not line or line.startswith('#'):
@@ -150,18 +150,20 @@ def load_annots(fh, delim='\t'):
 		
 		try:
 			gene_id, annots = line.split(delim)
+			logging.debug('gene_id:%s annots:%s', gene_id, annots) ## DEBUG
 		except ValueError:
 			logging.error("Filed to split line into 2 columns: %s", line)
 			sys.exit(1)
 		
 		# Add annots to dict - create key:[value] if we havent seen gene_id before. 
-		if gene_id not in annots.keys():
-			annots[gene_id] = []
+		if gene_id not in annots_dict.keys():
+			annots_dict[gene_id] = []
 		for annot in annots.split(','):
 			annot = annot.strip() # Clean up leading/trailing white space.
+			logging.debug('Cleaned annot:%s', annot) ## DEBUG
 			if annot: # If string not empty [True]
-				annots[gene_id].append(annot)
-	return annots
+				annots_dict[gene_id].append(annot)
+	return annots_dict
 
 
 

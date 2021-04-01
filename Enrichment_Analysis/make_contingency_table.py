@@ -1,7 +1,10 @@
 #!/usr/bin/env python2
 DESCRIPTION = '''
 
-Construct contingency table.
+Construct contingency table from two feature count lists.
+	- Both lists should be formatted: ID [tab] count
+	- The --test file should be the counts for the features in the genes of interest.
+	- The --not_test file should be the counts for the features in the genes *NOT* of interest (background).
 
 '''
 import sys

@@ -33,7 +33,7 @@ def make_contingency_table(test_fh, not_test_fh, out_fh):
 	test_counts, test_total = load_counts(test_fh)
 	not_test_counts, not_test_total = load_counts(not_test_fh)
 	
-	ids = set(test_counts.keys() + not_test_counts.keys())
+	ids = set(test_counts.keys()).union(set(not_test_counts.keys()))
 	
 	# [ID, DomainTestCount, DomainNotTestCount, NotDomainTestCount, NotDomainNotTestCount]
 	out_fh.write('ID\tDomainTestCount\tDomainNotTestCount\tNotDomainTestCount\tNotDomainNotTestCount\n')

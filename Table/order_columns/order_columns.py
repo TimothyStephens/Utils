@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 DESCRIPTION = '''
 order_columns - Takes an ORDERED list of column names (one per line) to return from input file. 
                 Columns not in input list will not be in output.
@@ -36,43 +36,43 @@ def main():
 	ordered_col_names = load_id_list(args.file) # Load column names/ids
 	
 	# For each line in input file
-        is_first_line = True
+	is_first_line = True
 	for line in args.input:
 		line = line.rstrip('\n')
 		if not line or line.startswith('#'):
 			continue
 		
 		if is_first_line:
-                        is_first_line = False
-                        col_names = line.split(args.delim)
-                        
-                        # For each ordered ID figure out its index/position in the avaliable columns
-                        col_output_order = []
-                        for name in ordered_col_names:
-                                try:
-                                        col_output_order.append(col_names.index(name))
-                                except ValueError:
-                                        logging.error("column name '%s' in ordered list not found in input file!", name)
-                                        sys.exit(1)
-                        logging.debug('col_output_order: %s', col_output_order) ## DEBUG
-
-                        # Now output the column names we want in the order we want.
-                        tmp_write = []
-                        for i in col_output_order:
-                                tmp_write.append(col_names[i])
+			is_first_line = False
+			col_names = line.split(args.delim)
+			
+			# For each ordered ID figure out its index/position in the avaliable columns
+			col_output_order = []
+			for name in ordered_col_names:
+				try:
+					col_output_order.append(col_names.index(name))
+				except ValueError:
+					logging.error("column name '%s' in ordered list not found in input file!", name)
+					sys.exit(1)
+			logging.debug('col_output_order: %s', col_output_order) ## DEBUG
+			
+			# Now output the column names we want in the order we want.
+			tmp_write = []
+			for i in col_output_order:
+				tmp_write.append(col_names[i])
 			args.output.write(args.delim.join(tmp_write) + '\n')
 			continue
 		
-                # If line is not header line write columns in the order we established
+		# If line is not header line write columns in the order we established
 		line_split = line.split(args.delim)
-                tmp_write = []
-                for i in col_output_order:
-                        try:
-                                tmp_write.append(line_split[i])
-                        except IndexError:
-                                logging.error("Column index '%s' does not exist for split line: '%s'", i, line_split)
-                                sys.exit(1)
-                args.output.write(args.delim.join(tmp_write) + '\n')
+		tmp_write = []
+		for i in col_output_order:
+			try:
+				tmp_write.append(line_split[i])
+			except IndexError:
+				logging.error("Column index '%s' does not exist for split line: '%s'", i, line_split)
+				sys.exit(1)
+		args.output.write(args.delim.join(tmp_write) + '\n')
 
 
 

@@ -26,7 +26,7 @@ def main():
 	parser.add_argument('--debug', action='store_true', required=False, help='Print DEBUG info (default: %(default)s)')
 	args = parser.parse_args()
 	
-        # Set up basic debugger
+	# Set up basic debugger
 	logFormat = "[%(levelname)s]: %(message)s"
 	logging.basicConfig(format=logFormat, stream=sys.stderr, level=logging.INFO)
 	if args.debug:
@@ -42,24 +42,24 @@ def main():
 	
 
 def top_hit_iter(blast_fh, num_subjects, num_hits):
-        """
-        Takes BLAST filehandle and yields lists of hits which have been filtered by num_subjects and num_hits.
+	"""
+	Takes BLAST filehandle and yields lists of hits which have been filtered by num_subjects and num_hits.
 	Allows for quick traversal and filtering of very large BLAST output files.
-	 
-        Version: 0.1simple
-        Last Modified: 26/11/2019
-        
-        Arguments:
-                blast_fh:       File handle with BLAST output "-outfmt 6".
-        
-        Yields:
-                blast_list:     List of BLAST hits after filtering in appropriate format. 
-        
-        Note:   - Must be sorted by key_col (all entries with same key_col must be next to each other)
+	
+	Version: 0.1simple
+	Last Modified: 26/11/2019
+	
+	Arguments:
+		blast_fh:       File handle with BLAST output "-outfmt 6".
+	
+	Yields:
+	blast_list:     List of BLAST hits after filtering in appropriate format. 
+	
+	Note:   - Must be sorted by key_col (all entries with same key_col must be next to each other)
 		- Ignores blank lines.
-                - Does not transform columns (will not convert str to int e.g. for start/stop/etc.)
+		- Does not transform columns (will not convert str to int e.g. for start/stop/etc.)
 
-        """
+	"""
 	delim='\t'
 	for query_id, hits in groupby(blast_fh, lambda x: x.strip().split(delim)[0]):
 		subjects_seen = 0

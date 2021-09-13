@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 DESCRIPTION = '''
 Cleans a nucl or prot fasta file of non-standard seq and header characters. 
 Will print stats of the cleaning process once completed (unless --quiet set).

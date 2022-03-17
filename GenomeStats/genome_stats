@@ -1,0 +1,343 @@
+#!/bin/bash
+
+set -euo pipefail
+
+
+## Useage message
+usage() {
+echo -e "\
+Prints various stats about the genome and predicted protein-coding genes of an organism.
+
+Usage: $(basename "$0") [OPTIONS...] genome.fa genes.gff3
+
+genome.fa
+    Fasta file with genome scaffolds/contigs
+
+genes.gff3
+    GFF3 formatted file listing the CDS of the predicted genes. 
+    This script only considers the 'CDS' features when generating 
+    stats and assumes that the 'Parent' attribute for each of the
+    features is set correctly (i.e., CDS from the same gene all 
+    have the same gene name in their Parent attribute). 
+
+-f|--feature
+    Set the feature type in the GFF3 file to generate stats from.
+    Can change to 'exon' if the user wants to generate stats for 
+    coding and non-coding genes. 
+
+--debug
+    Print debug information.
+
+Requires:
+    - stats.sh (from bbmaps)
+    - bedtools
+
+Version: ${VERSION}
+" 1>&2
+exit 1
+}
+
+
+## Default values
+VERSION=0.2
+XMX="12g"
+FEATURE="CDS"
+CLEANUP="0"
+
+
+## Get argument from command line
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+  key="$1"
+
+  case $key in
+    -f|--feature)
+      FEATURE="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -c|--cleanup)
+      CLEANUP="1"
+      shift # past argument
+      ;;
+    --debug)
+      set -x
+      shift # past argument
+      ;;
+    *)    # unknown option
+      POSITIONAL+=("$1") # save it in an array for later
+      shift # past argument
+      ;;
+  esac
+done
+
+set -- "${POSITIONAL[@]}" # restore positional parameters
+
+
+if [ "$#" -ne 2 ]; then
+  echo -e "\n\n        ERROR: Need exactly 2 command line arguments, $# were given.\n\n"
+  usage
+fi
+
+
+## Check if the required tools are available through the environment
+MISSINGTOOLS=0
+command -v bedtools >/dev/null 2>&1 || { echo >&2 "ERROR: Could not find required package: bedtools"; MISSINGTOOLS=1; }
+command -v stats.sh >/dev/null 2>&1 || { echo >&2 "ERROR: Could not find required package: stats.sh (from the bbmaps package)"; MISSINGTOOLS=1; }
+if [ $MISSINGTOOLS -gt 0 ]
+then
+	echo >&2 "ERROR: Some of the required tools were missing. Aborting!"
+	exit $MISSINGTOOLS
+fi
+
+
+## Start running
+GENOME="${1}"
+GFF="${2}"
+PREFIX="${GFF%*.gff3}"
+
+XMX="12g"
+
+## File names
+echo -e "# Files"
+echo -e "Genome file\t${GENOME}"
+echo -e "GFF file\t${GFF}"
+
+## Genome scaffold stats from stats.sh
+stats.sh -Xmx${XMX} "${GENOME}" format=2 > "${GENOME}.bbstats.txt"
+cat "${GENOME}.bbstats.txt" \
+ | awk '{ 
+  if(NR==2) {
+    GC=$8;
+  }
+  if($0~"    All") {
+    SCFCNT=$2;
+    CONCNT=$3;
+    SCFLEN=$4;
+    CONLEN=$5;
+  }
+  if($0~"scaffold N/L50") {
+    split($5,a,"/")
+    SCFN50=a[2];
+  }
+  if($0~"contig N/L50") {
+    split($5,a,"/")
+    CONN50=a[2];
+  }
+  if($0~"contig sequence total") {
+    sub("%", "", $7)
+    PCTGAP=$7;
+  }
+} END{
+  print ""
+  print "# Genome stats"
+  print "Total scaffold length (bp)\t"SCFLEN; 
+  print "Total contig length (bp)\t"CONLEN; 
+  print "Number of scaffolds\t"SCFCNT; 
+  print "Number of contigs\t"CONCNT;
+  print "N50 of scaffolds (bp)\t"SCFN50;
+  print "N50 of contigs (bp)\t"CONN50;
+  print "Percent gaps\t"PCTGAP;
+  print "Percent GC\t"GC*100;
+}'
+
+
+
+## Extract ${FEATURE} features and use them to reconstruct gene, intron and intergenic features.
+
+# Extract ${FEATURE} from gff3 in a feature orientated format (will be useful downstream when calculating introns and gene features):
+#    - Use "Parent" arrtibute as scaffold_id
+#    - Preserve stop, start, and strand in bed
+awk -F'\t' -vFEATURE="${FEATURE}" '$3==FEATURE {
+  split($9,a,";");
+  for (i in a) {
+    if(a[i]~"Parent="){
+      split(a[i],b,"=");
+      PARENT=b[2]
+    }
+  };
+  print PARENT"\t"$4-1"\t"$5"\t"$1"\t0\t"$7
+}' "${GFF}" \
+| bedtools sort \
+> "${PREFIX}.${FEATURE}_orientated.bed"
+
+bedtools getfasta -s \
+  -fi "${GENOME}" \
+  -bed <(awk -F'\t' '{print $4"\t"$2"\t"$3"\t"$1"\t"$5"\t"$6}' "${PREFIX}.${FEATURE}_orientated.bed") \
+  -fo "${PREFIX}.${FEATURE}.fasta"
+
+stats.sh -Xmx${XMX} "${PREFIX}.${FEATURE}.fasta" format=2 > "${PREFIX}.${FEATURE}.fasta.bbstats.txt"
+
+
+# Reconstruct genes from extracted features
+bedtools merge -d 1000000000 -c 4,5,6 -o distinct \
+  -i "${PREFIX}.${FEATURE}_orientated.bed" \
+  > "${PREFIX}.gene_orientated.bed"
+
+bedtools getfasta -s \
+  -fi "${GENOME}" \
+  -bed <(awk -F'\t' '{print $4"\t"$2"\t"$3"\t"$1"\t"$5"\t"$6}' "${PREFIX}.gene_orientated.bed") \
+  -fo "${PREFIX}.gene.fasta"
+
+stats.sh -Xmx${XMX} "${PREFIX}.gene.fasta" format=2 > "${PREFIX}.gene.fasta.bbstats.txt"
+
+
+# Reconstruct introns from extracted features
+bedtools subtract -s \
+    -a "${PREFIX}.gene_orientated.bed" \
+    -b "${PREFIX}.${FEATURE}_orientated.bed" \
+    > "${PREFIX}.intron_orientated.bed"
+
+bedtools getfasta -s \
+  -fi "${GENOME}" \
+  -bed <(awk -F'\t' '{print $4"\t"$2"\t"$3"\t"$1"\t"$5"\t"$6}' "${PREFIX}.intron_orientated.bed") \
+  -fo "${PREFIX}.intron.fasta"
+
+stats.sh -Xmx${XMX} "${PREFIX}.intron.fasta" format=2 > "${PREFIX}.intron.fasta.bbstats.txt"
+
+
+# Reconstruct intergenic regions using genes reconstructed from extracted features
+#    - Intergenic regions are only between two genes. Dont count regions at ends of scaffolds or on scaffolds with just one gene
+awk -F'\t' '{print $4"\t"$2"\t"$3"\t"$1"\t"$5"\t"$6}' "${PREFIX}.gene_orientated.bed" \
+  | bedtools sort \
+  > "${PREFIX}.gene.bed"
+
+bedtools merge -c 4,5,6 -o collapse \
+  -i "${PREFIX}.gene.bed" \
+  > "${PREFIX}.gene.merged.bed"
+
+bedtools subtract \
+    -a <(bedtools merge -d 1000000000 -i "${PREFIX}.gene.merged.bed") \
+    -b "${PREFIX}.gene.merged.bed" \
+    > "${PREFIX}.intergenic.bed"
+
+bedtools getfasta \
+  -fi "${GENOME}" \
+  -bed "${PREFIX}.intergenic.bed" \
+  -fo "${PREFIX}.intergenic.fasta"
+
+stats.sh -Xmx${XMX} "${PREFIX}.intergenic.fasta" format=2 > "${PREFIX}.intergenic.fasta.bbstats.txt"
+
+
+## Gene (${FEATURE}+introns) stats
+cat "${PREFIX}.gene_orientated.bed" \
+  | awk -F'\t' -vFEATURE="${FEATURE}" '{
+      GENE_COUNT[$1]++
+      TOTAL_GENE_LENGTH=TOTAL_GENE_LENGTH+($3-$2);
+    } END {
+      print ""
+      print "# Gene stats (combined "FEATURE"+introns)"
+      print "Number of genes\t"length(GENE_COUNT)
+      print "Total gene length\t"TOTAL_GENE_LENGTH
+      print "Average gene length (bp)\t"TOTAL_GENE_LENGTH/length(GENE_COUNT)
+    }'
+cat "${PREFIX}.gene.fasta.bbstats.txt" \
+  | awk -F'\t' -vFEATURE="${FEATURE}" '{
+      if(NR==2) {
+        GC=$8;
+      }
+    } END {
+      print "Gene percent GC\t"GC*100;
+    }'
+
+
+## Transcripts (just $FEATURE) stats
+cat "${PREFIX}.${FEATURE}_orientated.bed" \
+  | awk -F'\t' -vFEATURE="${FEATURE}" '{ 
+      TOTAL_FEATURE_LENGTH=TOTAL_FEATURE_LENGTH+($3-$2); 
+      FEATURE_COUNT++;
+      GENE_COUNT[$1]++; 
+    } END { 
+      print ""
+      print "# Transcript stats (based on "FEATURE" features)"
+      print "Average transcript length (bp)\t"TOTAL_FEATURE_LENGTH/length(GENE_COUNT)
+      print "Average number of "FEATURE" per gene/transcript\t"FEATURE_COUNT/length(GENE_COUNT)
+      print ""
+      print "# "FEATURE" stats"
+      print "Number of "FEATURE"\t"FEATURE_COUNT
+      print "Total "FEATURE" length (bp)\t"TOTAL_FEATURE_LENGTH
+      print "Average "FEATURE" length (bp)\t"TOTAL_FEATURE_LENGTH/FEATURE_COUNT
+      SINGLE_FEATURE_GENE=0
+      for (i in GENE_COUNT) {
+        if (GENE_COUNT[i] == 1) {
+          SINGLE_FEATURE_GENE++
+        }
+      }
+      print "Number of single-"FEATURE" transcripts\t"SINGLE_FEATURE_GENE
+      print "Percent single-"FEATURE" transcripts\t"(SINGLE_FEATURE_GENE/length(GENE_COUNT))*100
+    }'
+cat "${PREFIX}.${FEATURE}.fasta.bbstats.txt" \
+  | awk -F'\t' -vFEATURE="${FEATURE}" '{
+      if(NR==2) {
+        GC=$8;
+      }
+    } END {
+      print FEATURE" percent GC\t"GC*100;
+    }'
+
+
+## Intron (infered using ${FEATURE}) stats
+cat "${PREFIX}.intron_orientated.bed" \
+  | awk -F'\t' -vFEATURE="${FEATURE}" '{
+      TOTAL_INTRON_LENGTH=TOTAL_INTRON_LENGTH+($3-$2); 
+      INTRON_COUNT++;
+    } END {
+      print ""
+      print "# Intron stats (predicted between "FEATURE" features)"
+      print "Number of introns\t"INTRON_COUNT
+      print "Total intron length (bp)\t"TOTAL_INTRON_LENGTH
+      print "Average intron length (bp)\t"TOTAL_INTRON_LENGTH/INTRON_COUNT
+    }'
+cat "${PREFIX}.intron.fasta.bbstats.txt" \
+  | awk -F'\t' '{
+      if(NR==2) {
+        GC=$8;
+      }
+    } END {
+      print "Intron percent GC\t"GC*100;
+    }'
+
+
+## Intergenic regions (infered using ${FEATURE}-based gene models) stats
+cat "${PREFIX}.intergenic.bed" \
+  | awk -F'\t' -vFEATURE="${FEATURE}" '{
+      TOTAL_INTERGENIC_LENGTH=TOTAL_INTERGENIC_LENGTH+($3-$2); 
+      INTERGENIC_COUNT++;
+    } END {
+      print ""
+      print "# Intergenic stats (predicted between genes built from "FEATURE" features)"
+      print "Number of intergenic regions\t"INTERGENIC_COUNT
+      print "Total intergenic region length (bp)\t"TOTAL_INTERGENIC_LENGTH
+      print "Average intergenic region length (bp)\t"TOTAL_INTERGENIC_LENGTH/INTERGENIC_COUNT
+    }'
+cat "${PREFIX}.intergenic.fasta.bbstats.txt" \
+  | awk -F'\t' '{
+      if(NR==2) {
+        GC=$8;
+      }
+    } END {
+      print "Intergenic region percent GC\t"GC*100;
+    }'
+
+
+## Cleanup if needed.
+if [ "${CLEANUP}" -eq 1 ];
+then
+  rm -fr "${GENOME}.bbstats.txt"
+  rm -fr "${PREFIX}.${FEATURE}_orientated.bed"
+  rm -fr "${PREFIX}.${FEATURE}.fasta"
+  rm -fr "${PREFIX}.${FEATURE}.fasta.bbstats.txt"
+  rm -fr "${PREFIX}.gene_orientated.bed"
+  rm -fr "${PREFIX}.gene.fasta"
+  rm -fr "${PREFIX}.gene.fasta.bbstats.txt"
+  rm -fr "${PREFIX}.intron_orientated.bed"
+  rm -fr "${PREFIX}.intron.fasta"
+  rm -fr "${PREFIX}.intron.fasta.bbstats.txt"
+  rm -fr "${PREFIX}.gene.bed"
+  rm -fr "${PREFIX}.gene.merged.bed"
+  rm -fr "${PREFIX}.intergenic.bed"
+  rm -fr "${PREFIX}.intergenic.fasta"
+  rm -fr "${PREFIX}.intergenic.fasta.bbstats.txt"
+fi
+
+

@@ -102,7 +102,9 @@ def load_key_value_from_file(db, keyvalue_file, delim):
 		if not line or line.startswith('#'):
 			continue
 		
-		key, value = line.split(delim)
+		line_split = line.split(delim)
+		key = line_split[0]
+		value = delim.join(line_split[1:])
 		c.execute('INSERT INTO values2add (key, value) VALUES (?, ?)', (key, value))
 	db.commit()
 

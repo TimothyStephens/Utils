@@ -1,0 +1,9 @@
+#!/bin/bash
+
+## du_scratch - print the disk useage (du -sh) for files and directories at specific depths for the users scratch directory.
+
+for L in {1..2};
+do
+  echo "cd \"/scratch/$USER/\" && du_level ${L} | grep -v 'du-lvl' > du-lvl${L}.txt"
+done | parallel --jobs 0
+

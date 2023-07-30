@@ -1,0 +1,34 @@
+#!/bin/bash
+
+## dd - print dish usage for /home and /scratch directories and color based on %used
+## 
+VERSION=1
+TIMEOUT=10
+
+timeout "${TIMEOUT}" df -h | \
+awk '{
+        if ($1=="Filesystem") {print};
+	x=$5
+	gsub("%","",x);
+	x=x+0
+        if ($6=="/home") {
+                if (x < 50) {
+                        print "\033[0;32m"$0"\033[0m"
+                } else if (x < 75) {
+                        print "\033[0;33m"$0"\033[0m"
+                } else {
+                        print "\033[0;31m"$0"\033[0m"
+                }
+        };
+        if ($6=="/scratch") {
+                if (x < 50) {
+                        print "\033[0;32m"$0"\033[0m"
+                } else if (x < 75) {
+                        print "\033[0;33m"$0"\033[0m"
+                } else {
+                        print "\033[0;31m"$0"\033[0m"
+                }
+        }
+}' || echo -e "\n\n\033[0;31m    Killed disk check!! df took too long\033[0m\n\n"
+
+

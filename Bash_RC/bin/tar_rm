@@ -1,0 +1,21 @@
+#!/bin/bash
+
+## tar_rm - tar gzip a directory and then romve it if sucessful. 
+VERSION=0.1
+
+COMMAND_LINE_OBJECTS=$@
+
+for DIR in "${@}";
+do
+	DIR=${DIR%/}
+	if [ -d "$DIR" ]
+	then
+		tar -zcf "$DIR.tar.gz" "$DIR" && rm -fr "$DIR";
+	else
+		echo -e "tar_rm: $DIR directory does not exist or is just a regular file!";
+		exit 1
+	fi
+done
+
+
+

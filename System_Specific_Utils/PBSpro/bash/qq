@@ -1,0 +1,10 @@
+#!/bin/sh
+
+## List the users jobs. 
+## 
+qq (){
+	
+	qstat -u $USER "$@"
+	
+}
+

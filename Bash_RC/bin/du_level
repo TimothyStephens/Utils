@@ -1,0 +1,27 @@
+#!/bin/bash
+
+## du_level - print the disk useage (du -sh) for files and directories at a given depth
+if [ $# -gt 1 ];
+then
+  echo -e "Too many arguments supplied:\n\n$0 dir_level\n"
+  exit 1
+fi
+
+if [ -z "${1}" ];
+then
+  dirlevel=1
+else
+  dirlevel="${1}"
+fi
+
+[ -n "${dirlevel}" ] && [ "${dirlevel}" -ge 1 ] 2>/dev/null
+if [ $? -ne 0 ];
+then
+  echo -e "dir_level needs to be an integer >= 1\n\nE.g.:\n\t$0 1\n"
+  exit 1
+fi
+
+# Run du -shc using the sepecified dir_depth
+find . -mindepth "${dirlevel}" -maxdepth "${dirlevel}" | sed -e 's@^./@@' | sort | xargs du -shc
+
+

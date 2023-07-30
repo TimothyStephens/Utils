@@ -1,0 +1,11 @@
+tell application "Terminal"
+	activate
+	do script ""
+	set the bounds of the first window to {50, 25, 1600, 1100}
+	-- x - x position in pixels
+	-- y - y position in pixels
+	-- w - width in pixels
+	-- h - height in pixels
+	-- set _brew to first settings set whose name is "Homebrew"
+	-- tell front window to set current settings to _brew
+end tell

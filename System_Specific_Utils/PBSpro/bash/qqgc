@@ -1,0 +1,12 @@
+#!/bin/sh
+
+## Get the number of CPU's currently being used by users running jobs. 
+## 
+qqgc (){
+	
+	COUNT=$(qqg -tw | awk '$1~".delta"{if($10=="R"){RUNNING=RUNNING+$7};TOTAL=TOTAL+$7}END{print RUNNING"\t"TOTAL}');
+	
+	echo $COUNT | awk '{if(NF==2){print "CPU\47s Used/Requested: "$1"/"$2}else{print "CPU\47s Used/Requested: 0/"$1}}';
+	
+}
+

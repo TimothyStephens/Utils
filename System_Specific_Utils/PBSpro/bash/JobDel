@@ -1,0 +1,12 @@
+#!/bin/bash
+
+
+## Take qstat output or a list of job IDs and attempt to qdel $1
+## 
+JobDel (){
+
+	awk '{cmd="qdel "$1; system(cmd); close(cmd)}' < /dev/stdin
+
+}
+
+

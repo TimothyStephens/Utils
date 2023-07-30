@@ -1,0 +1,10 @@
+#!/bin/sh
+
+## Get just job information for qq. 
+## 
+qqgl (){
+	
+	qqg -tw | awk '$1~".delta"{print $0}'
+	
+}
+

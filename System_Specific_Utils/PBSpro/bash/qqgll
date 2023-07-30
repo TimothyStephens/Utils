@@ -1,0 +1,12 @@
+#!/bin/sh
+
+## Get just job information for qq. 
+## 
+qqgll (){
+
+	COUNT=$(qqg -tw | awk '$1~".delta"{if($10=="R"){RUN=RUN+1};SUM=SUM+1}END{print RUN"\t"SUM}');
+
+	echo $COUNT | awk '{if(NF==2){print "Jobs Running/Total: "$1"/"$2}else{print "Jobs Running/Total: 0/"$1}}';
+	
+}
+

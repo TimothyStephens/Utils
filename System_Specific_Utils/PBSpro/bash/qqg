@@ -1,0 +1,11 @@
+#!/bin/sh
+
+## List the jobs for the whole group. 
+## 
+qqg (){
+	
+	GROUP="Group-Coin"
+	qstat -u `getent group | awk -F: -v GROUP=$GROUP '$1==GROUP{print $4}'` "$@"
+	
+}
+

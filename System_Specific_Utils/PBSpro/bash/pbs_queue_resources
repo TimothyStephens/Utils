@@ -1,0 +1,9 @@
+#!/bin/sh
+
+## Print queue resources avalible. 
+## 
+pbs_queue_resources (){
+ 	qmgr -c 'p s'
+}
+
+

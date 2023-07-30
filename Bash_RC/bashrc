@@ -1,0 +1,39 @@
+
+###################
+## Added by user ##
+###################
+
+# Add to PATH
+export PATH=$PATH:~/bin
+
+# Add additional env variables
+export R_LIBS=~/R_LIBS
+
+# Set unlimited file handle limit
+ulimit -s unlimited
+
+# Aliases
+alias cc="cd /scratch/$USER/"
+alias ls='/bin/ls --color=auto'
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+alias column_view="column -ts$'\t' | less -S"
+alias header_index="awk -F'\\t' 'BEGIN{C=0} NR==1{for(i=1; i<=NF; i++){C++; print C\"\\t\"\$i}}'"
+
+# Aliases for server addresses
+alias 'timothy@coral.rutgers.edu'='timothy@coral.rutgers.edu'
+alias 'ts942@amarel.rutgers.edu'='ts942@amarel.rutgers.edu'
+
+# Activate conda env and move to working dir
+conda activate py27
+cc
+
+# Print stats about the file system
+echo -e ""
+df_colored
+echo -e ""
+
+
+
+

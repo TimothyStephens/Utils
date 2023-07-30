@@ -1,0 +1,126 @@
+# .bashrc
+
+# Source global definitions
+if [ -f /etc/bashrc ]; then
+	. /etc/bashrc
+fi
+
+# User specific aliases and functions
+ulimit -s unlimited
+export R_LIBS=~/R_LIBS
+module use /projects/community/modulefiles
+
+LC_ALL=en_US
+export LC_ALL
+
+alias la='/bin/ls -lathr --color=auto'
+alias ls='/bin/ls --color=auto'
+alias qq='squeue -u ts942'
+alias cc='cd /scratch/ts942/'
+alias sj='sacct --units=G --format JobName,NTasks,AllocCPUs,ReqMem,MaxRSS,MaxVMSize,MaxDiskRead,MaxDiskWrite,TotalCPU,CPUTime,Elapsed -j '
+alias jobs='jobs -l'
+
+function ln_loop() {
+for F in $@; do ln -s $F; done
+}
+function unlink_loop() {
+for F in $@; do unlink $F; done
+}
+
+
+## PATH & LD_LIBRARY_PATH are searched in order (first to last, so first is highest priority)
+#module load gcc/5.4
+#module load cmake/3.15.4-gc563
+#module load boost/1.66.0-gc563
+#module load zlib/1.2.11-gc563
+#module load java/1.8.0_231
+#module load python/2.7.17-gc563
+
+
+#export LD_LIBRARY_PATH=/scratch/userid/sshtools/lib:$LD_LIBRARY_PATH
+#export MPI_HOME=/opt/mpich2/1.4
+#export MKL_HOME=/opt/intel/Compiler/11.1/038/mkl
+#export LIBRARY_PATH=/scratch/userid/gmp/5.0.2/lib:/scratch/userid/mpfr/3.0.1/lib:/scratch/userid/mpc/0.9/lib:/scratch/userid/gcc/4.6.1/lib64:$LIBRARY_PATH
+#export C_INCLUDE_PATH=/scratch/userid/gmp/5.0.2/include:/scratch/userid/mpfr/3.0.1/include:/scratch/userid/mpc/0.9/include:$C_INCLUDE_PATH
+#export CPLUS_INCLUDE_PATH=/scratch/userid/gmp/5.0.2/include:/scratch/userid/mpfr/3.0.1/include:/scratch/userid/mpc/0.9/include:/scratch/userid/gcc/4.6.1/include/c++/4.6.1:$CPLUS_INCLUDE_PATH
+#export PATH=/scratch/userid/gcc/4.6.1/bin:$PATH
+#export CC=/scratch/userid/gcc/4.6.1/bin/gcc
+#export CXX=/scratch/userid/gcc/4.6.1/bin/g++
+#export F77=/scratch/userid/gcc/4.6.1/bin/gfortran
+#export F90=/scratch/userid/gcc/4.6.1/bin/gfortran
+
+cd /scratch/ts942/
+
+# Only run this code if we are in an interactive shell.
+if [ "$PS1" ]; then
+	~/check_file_creation_date.sh -c
+fi
+
+# Check how close to the quota I am
+if [ "$PS1" ]; then
+mmlsquota --block-size=G cache scratch \
+ | awk -vLIMIT=0.85 '
+BEGIN {
+	CACHE_QUOTA=CACHE_CURRENT=SCRATCH_QUOTA=SCRATCH_CURRENT=0
+} { 
+	if($1=="cache") {CACHE_QUOTA=$4; CACHE_CURRENT=$3}; 
+	if($1=="scratch") {SCRATCH_QUOTA=$4; SCRATCH_CURRENT=$3} 
+} 
+END {
+	printf "/home     %3.2f%  --  Using %iGB out of %iGB\n", (CACHE_CURRENT/CACHE_QUOTA)*100, CACHE_CURRENT, CACHE_QUOTA
+	printf "/scratch  %3.2f%  --  Using %iGB out of %iGB\n", (SCRATCH_CURRENT/SCRATCH_QUOTA)*100, SCRATCH_CURRENT, SCRATCH_QUOTA
+	if(CACHE_CURRENT > (CACHE_QUOTA*LIMIT)) {
+		print "#########################"
+		print "######## WARNING ########"
+		print "#########################"
+		print "# "
+		print "# "
+		print "# WARNING cache is >"LIMIT*100"% full!! - Time to cleanup!"
+		print "# "
+		print "# "
+		print "#########################"
+		print "######## WARNING ########"
+		print "#########################"
+	}; 
+	if(SCRATCH_CURRENT > (SCRATCH_QUOTA*LIMIT)) {
+		print "#########################"
+		print "######## WARNING ########"
+		print "#########################"
+		print "# "
+		print "# "
+		print "# WARNING scratch is >"LIMIT*100"% full!! - Time to cleanup!"
+		print "# "
+		print "# "
+		print "#########################"
+		print "######## WARNING ########"
+		print "#########################"
+	} 
+}'
+fi
+
+
+
+
+PATH="/home/ts942/perl5/bin${PATH:+:${PATH}}"; export PATH;
+PERL5LIB="/home/ts942/perl5/lib/perl5${PERL5LIB:+:${PERL5LIB}}"; export PERL5LIB;
+PERL_LOCAL_LIB_ROOT="/home/ts942/perl5${PERL_LOCAL_LIB_ROOT:+:${PERL_LOCAL_LIB_ROOT}}"; export PERL_LOCAL_LIB_ROOT;
+PERL_MB_OPT="--install_base \"/home/ts942/perl5\""; export PERL_MB_OPT;
+PERL_MM_OPT="INSTALL_BASE=/home/ts942/perl5"; export PERL_MM_OPT;
+
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('/home/ts942/miniconda2/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/home/ts942/miniconda2/etc/profile.d/conda.sh" ]; then
+        . "/home/ts942/miniconda2/etc/profile.d/conda.sh"
+    else
+        export PATH="/home/ts942/miniconda2/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<
+
+#conda deactivate
+

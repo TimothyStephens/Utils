@@ -141,7 +141,8 @@ done
 # Get the column offset (i.e., distance from right of table) of our chosen taxa_col.
 TARGET_TAXA_COL=$(zcat "${LINEAGE}" | awk -F'\t' -vTARGET_TAXA_LEVEL="${TARGET_TAXA_LEVEL}" 'NR==1{ COL="NA"; for(i=3; i<=NF; i++){ if(TARGET_TAXA_LEVEL==$i){COL=(NF-i)+1} }; print COL }')
 if [[ "$TARGET_TAXA_COL" == "NA" ]]; then
-  echo "ERROR: '--target_taxa' ($TARGET_TAXA_LEVEL) was not found in lineage file."
+  echo "ERROR: '--target_taxa' ($TARGET_TAXA_LEVEL) was not found in lineage file." 1>&2
+  exit 1
 fi
 
 

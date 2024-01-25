@@ -98,7 +98,7 @@ def load_key_value_from_file(db, keyvalue_file, delim):
 	
 	c = db.cursor()
 	for line in keyvalue_file:
-		line = line.strip()
+		line = line.strip('\n')
 		if not line or line.startswith('#'):
 			continue
 		

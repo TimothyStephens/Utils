@@ -1,0 +1,65 @@
+#!/bin/bash
+
+VERSION=0.1
+
+## Useage information
+usage() {
+echo -e "##
+## $(basename ${0}) v${VERSION}
+##
+
+View tab delimited file as a table using less, with columns spaced so that everything is aligned correctly throughout the table.
+
+NOTE: It can take a long time to view a large file as the script has to load the whole file to figure out
+      how wide the columns should be. So it maybe best to head the file so reduce runtime if you dont
+      need to view the whole file.
+
+Usage:
+$(basename $0) table.tsv
+*OR* (view just the top of the table)
+zcat table.tsv.gz | head -n 100 | $(basename $0)
+
+Options (all optional):
+-v, --version              Script version (v${VERSION})
+-h, --help                 This help message
+--debug                    Run debug mode
+" 1>&2
+exit 1
+}
+
+# See https://stackoverflow.com/questions/192249/how-do-i-parse-command-line-arguments-in-bash
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+  key="$1"
+  case $key in
+    -h|--help)
+      usage
+      exit 1;
+      ;;
+    -v|--version)
+      echo "v${VERSION}"
+      exit 0;
+      ;;
+    --debug)
+      set -x
+      shift # past argument
+      ;;
+    *) # unknown option
+      POSITIONAL+=("$1") # save it in an array for later
+      shift # past argument
+      ;;
+  esac
+done
+set -- "${POSITIONAL[@]}" # restore positional parameters
+
+# View as columns
+if [ -z "${1}" ]; then
+  # No file given, use stdin
+  FILE=/dev/stdin
+else
+  # Use file given
+  FILE="${1}"
+fi
+
+cat $FILE | column -ts$'\t' | less -S
+

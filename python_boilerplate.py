@@ -20,7 +20,7 @@ def main():
 		required=False, default=sys.stdout, type=lambda x: File(x, 'w'), 
 		help='Output [gzip] file (default: stdout)'
 	)
-        parser.add_argument('-b', '--bam', metavar='aligned_reads.bam', 
+	parser.add_argument('-b', '--bam', metavar='aligned_reads.bam', 
 		required=False, type=argparse.FileType('r'), 
 		help='Aligned reads (default: %(default)s)'
 	)
@@ -100,7 +100,7 @@ class File(object):
 	
 	Code based off of context manager tutorial from: https://book.pythontips.com/en/latest/context_managers.html
 	'''
- 	def __init__(self, file_name, mode):
+	def __init__(self, file_name, mode):
 		## Upon initializing class open file (using gzip if needed)
 		self.file_name = file_name
 		self.mode = mode

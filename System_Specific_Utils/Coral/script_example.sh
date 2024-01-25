@@ -5,7 +5,7 @@ exec 1> "${0}.log.$(date +%s)" 2>&1
 
 #### Pre-run setup
 source ~/scripts/script_setup.sh
-set +eu; conda activate py27; set -eu
+set +eu; conda activate main; set -eu
 
 
 #### Start Script

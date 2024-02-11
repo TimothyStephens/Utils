@@ -91,6 +91,8 @@ done
 if [ $LARGE_FILES_FOUND -gt 0 ]; then
 	file_too_large
 	exit 1
+else
+	echo "All files below $limitInMB MB GitHub file size limit. Proceeding with commit..."
 fi
 
 
@@ -138,7 +140,7 @@ function prepare_dictionary() {
         sort -u $temp_dict -o $temp_dict
         aspell --lang="$lang" create master "$temp_dict" < "$dict"
     else
-        temp_file=$(mktemp temp_file-XXXXXX)
+        temp_file=$(mktemp --tmpdir="$TMPDIR" temp_file-XXXXXX)
         for file in $local_dict; do
             cat $file >> $temp_file
         done

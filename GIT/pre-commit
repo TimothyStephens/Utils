@@ -105,6 +105,8 @@ fi
 #########################################################
 #########################################################
 
+# Code from https://github.com/mprpic/git-spell-check
+#
 # The following is a text file that represents your custom dictionary; edit as necessary. Add words to it that you wish
 # to ignore for the spell check.
 dict=~/.git-spell-check

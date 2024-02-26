@@ -14,7 +14,7 @@ adduser $username DBlab
 usermod -g DBlab $username
 
 mkdir /scratch/$username
-chown $username /scratch/$username
+chown ${username}:DBlab /scratch/$username
 chmod o-rwx /scratch/$username /home/$username
 
 echo -e '\nFinish adding $username'

@@ -1,0 +1,277 @@
+#!/bin/env bash
+
+VERSION="0.1"
+
+
+
+## Pre-run setup
+set -euo pipefail
+IFS=$'\n\t'
+
+# Absolute path to this script, e.g. /home/user/bin/foo.sh
+SCRIPT=$(readlink -f "$0")
+# Absolute path this script is in, thus /home/user/bin
+SCRIPTPATH=$(dirname "$SCRIPT")
+
+
+
+## Useage information
+usage() {
+echo -e "##
+## $(basename ${0}) v${VERSION}
+##
+
+Text file spelling checker
+
+Will produce a dictionary of acceptable new words in ~/.git-spell-check
+
+Usage: 
+$(basename $0) file2check_1 file2check_2 file2check_3 ...
+*OR*
+find . -type f | $(basename $0)
+
+Options (all optional):
+-v, --version              Script version (v${VERSION})
+-h, --help                 This help message
+--debug                    Run debug mode
+" 1>&2
+exit 1
+}
+
+
+# See https://stackoverflow.com/questions/192249/how-do-i-parse-command-line-arguments-in-bash
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+  key="$1"
+
+  case $key in
+    -h|--help)
+      usage
+      exit 1;
+      ;;
+    -v|--version)
+      echo "v${VERSION}"
+      exit 0;
+      ;;
+    --debug)
+      set -x
+      shift # past argument
+      ;;
+    *) # unknown option
+      POSITIONAL+=("$1") # save it in an array for later
+      shift # past argument
+      ;;
+  esac
+done
+
+set -- "${POSITIONAL[@]}" # restore positional parameters
+
+
+
+
+##################################
+##################################
+############## Setup #############
+##################################
+##################################
+
+# Code based on https://github.com/mprpic/git-spell-check
+#
+# The following is a text file that represents your custom dictionary; edit as necessary. Add words to it that you wish
+# to ignore for the spell check.
+dict=~/.git-spell-check
+if [ ! -f $dict ]; then
+    touch ~/.git-spell-check
+    dict=~/.git-spell-check
+    printf "%s\n" "Custom dictionary not found. Created ~/.git-spell-check..."
+fi
+
+
+# The following is a temporary dictionary (a binary file) created from the dict text file. It is deleted after the
+# script finishes.
+if [ -z "$TMPDIR" ]; then export TMPDIR="/tmp"; fi
+temp_dict=$(mktemp --tmpdir="$TMPDIR" docs-dictionary-XXXXXX)
+
+# Language of your doc. When using a non-English language, make sure you have the appropriate aspell libraries
+# installed: "yum search aspell". For example, to spell check in Slovak, you must have the aspell-sk package installed.
+lang=en
+
+# Define an extension for any additional dictionaries (containing words that are ignored during the spell check) that
+# are kept locally in your repository. These dictionaries will be loaded on top of the existing global dictionary (by
+# default ~/.git-spell-check).
+extension=pws
+
+
+# Prepares the dictionary from scratch in case new words were added since last time.
+local_dict=$(find . -name *.$extension -exec ls {} \;)
+if [ -z "$local_dict" ]; then
+  sort -u $temp_dict -o $temp_dict
+  aspell --lang="$lang" create master "$temp_dict" < "$dict"
+else
+  temp_file=$(mktemp --tmpdir="$TMPDIR" temp_file-XXXXXX)
+  for file in $local_dict; do
+    cat $file >> $temp_file
+  done
+  cat $dict >> $temp_file
+  sort -u $temp_file -o $temp_file
+  aspell --lang="$lang" create master "$temp_dict" < "$temp_file"
+  /bin/rm -f "$temp_file"
+fi
+
+
+# Removes the temporary dictionary.
+function cleanup() {
+  /bin/rm -f "$temp_dict"
+}
+# Clean up if script is interrupted or terminated.
+trap "cleanup" SIGINT SIGTERM
+
+
+
+## Check if we were given files to check or need to check all files
+file_list="$temp_dict.file_list"
+if [ "$#" -ne 0 ];
+then
+  for f in "$@";
+  do
+    echo "$f" >> "$file_list"
+  done
+else
+  cat /dev/stdin > "$file_list"
+fi
+
+
+
+
+
+##################################
+##################################
+#### Spell Checking Functions ####
+##################################
+##################################
+
+# Spell checks content you're about to commit. Writes out words that are misspelled or exits with 0 (i.e. continues with
+# commit).
+function spell_check() {
+
+    words=$(cat "$file_list" | aspell --mode=sgml list --add-sgml-skip={ulink,code,literal,firstname,parameter,option,package,replaceable,programlisting,userinput,screen,filename,command,computeroutput,abbrev,accel,orgname,surname,foreignphrase,acronym,hardware,keycap,systemitem,application} --lang="$lang" --extra-dicts="$temp_dict" | sort -u)
+    if [ ! "$words" ]; then
+        printf "%s\n" "No typos found. Proceeding with commit..."
+        cleanup; exit 0
+    fi
+    printf "%s\n" "Spell check failed on the following words:
+-------------------------------------------------"
+    echo $words
+    for word in $words; do
+        grep --color=always -HIrone -f "$file_list" "\<$word\>" | awk -F ":" '{print "File: " $1 "\ton line: " $2 "\tTypo: " $3}'
+        printf "%s\n" "-------------------"
+    done
+
+}
+
+
+
+# Adds all words to the custom dictionary and continues with the commit.
+function add_all() {
+
+    for word in $words; do
+        echo $word >> "$dict"
+    done
+
+}
+
+# Adds some (selected by user) of the words to the dictinary.
+function add_some() {
+
+    for word in $words; do
+        printf "%s\n" "Do you want to add the following word to your custom dictionary: $word  (y[es] or n[o])"
+        while true; do
+            exec < /dev/tty
+            read answer
+            shopt -s nocasematch
+            case "$answer" in
+                y|yes)
+                    echo $word >> "$dict"
+                    printf "%s\n" "\"$word\" added to your custom dictionary."
+                    break ;;
+                n|no)
+                    break ;;
+                *)
+                    printf "%s\n" "Incorrect answer. Try again."
+                    continue
+            esac
+            shopt -u nocasematch
+        done
+    done
+
+}
+
+# Adds none of the words.
+function add_none() {
+
+    printf "%s\n" "No words were added to your custom dictionary."
+    printf "%s\n" "Please fix remaining typos."
+
+}
+
+
+
+
+
+##################################
+##################################
+####### Run Spell Checking #######
+##################################
+##################################
+
+# Spell checks file provided. Writes out words that are misspelled or exits with 0.
+words=$( while read file; do cat "$file"; done < "$file_list" | aspell --mode=sgml list --add-sgml-skip={ulink,code,literal,firstname,parameter,option,package,replaceable,programlisting,userinput,screen,filename,command,computeroutput,abbrev,accel,orgname,surname,foreignphrase,acronym,hardware,keycap,systemitem,application} --lang="$lang" --extra-dicts="$temp_dict" | sort -u)
+if [ ! "$words" ]; then
+  printf "%s\n" "No typos found!"
+  cleanup; exit 0
+fi
+printf "%s\n" "Spell check failed on the following words:
+-------------------------------------------------"
+echo $words
+for word in $words; do
+  grep --color=always -HIrone "\<$word\>" -f "$file_list" | awk -F ":" '{print "File: " $1 "\ton line: " $2 "\tTypo: " $3}'
+  printf "%s\n" "-------------------"
+done
+
+
+
+## Adds all, some, or none of the misspelled words to the custom dictionary.
+printf "%s\n" "
+Add any of the misspelled words into your custom dictionary?
+  * a[ll]     (add all words into dict)
+  * s[ome]    (add some words into dict and fix others)
+  * n[one]    (do nothing)
+"
+
+while true; do
+  exec < /dev/tty # Simply reading user input does not work because Git hooks have stdin detached.
+  read answer
+  shopt -s nocasematch
+  case "$answer" in
+            a|all)
+                add_all
+                cleanup; exit 0
+                ;;
+            s|some)
+                add_some
+                printf "%s\n" "Please fix remaining typos."
+                cleanup; exit 0
+                ;;
+            n|none)
+                cleanup; exit 0
+                ;;
+            *) 
+                printf "%s\n" "Incorrect answer. Try again."
+                continue
+  esac
+  shopt -u nocasematch
+done
+
+
+

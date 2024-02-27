@@ -5,7 +5,8 @@ set -e
 #
 # Place this script into the ".git/hooks/" directory in your repository. It must be called "pre-commit" and be
 # executable. A Git hook only works in a single repository. You need to copy this hook into every repository you wish to
-# use it in manually. Optionally, you can set up a symlink in the ".git/hooks/" directory pointing to the script.
+# use it in manually. Optionally, you can copy/symlink this file into your "~/.git_hooks/" directory (make it if it is missing)
+# and run `git config --global core.hooksPath ~/.git_hooks/` to configure git to always use the hook across all repositories.
 #
 # Each time you try to commit something, this script will run to check the content you are committing.
 #
@@ -14,7 +15,16 @@ set -e
 # This hook is composed of two parts:
 #   (1) Check commited files are < 100 MB - the GitHub push limit
 #   (2) Spell checks the content you are committing
-
+#
+# Each can be toggled globally using the below variable in this script or by setting the same envs in the user bash session
+if [ -z "${GIT_PRECOMMIT_CHECK_FILESIZE}" ];
+then
+  GIT_PRECOMMIT_CHECK_FILESIZE=1
+fi
+if [ -z "${GIT_PRECOMMIT_CHECK_SPELLING}" ];
+then
+  GIT_PRECOMMIT_CHECK_SPELLING=0
+fi
 
 
 
@@ -24,6 +34,8 @@ set -e
 #### (1) Check commited files are < 100 MB - the GitHub push limit ####
 #######################################################################
 #######################################################################
+if [ $GIT_PRECOMMIT_CHECK_FILESIZE -eq 1 ];
+then
 
 # This is a pre-commit hook that ensures attempts to commit files that
 # are larger than 100 MB to your _local_ repo fail, with a helpful error
@@ -95,6 +107,8 @@ else
 	echo "All files below $limitInMB MB GitHub file size limit. Proceeding with commit..."
 fi
 
+fi # GIT_PRECOMMIT_CHECK_FILESIZE
+
 
 
 
@@ -104,6 +118,8 @@ fi
 #### (2) Spell checks the content you are committing ####
 #########################################################
 #########################################################
+if [ $GIT_PRECOMMIT_CHECK_SPELLING -eq 1 ];
+then
 
 # Code from https://github.com/mprpic/git-spell-check
 #
@@ -209,6 +225,10 @@ Add any of the misspelled words into your custom dictionary?
                 add_some
                 cleanup; exit 0
                 ;;
+            k|skip)
+                add_none
+                cleanup; exit 0
+                ;;
             n|none)
                 add_none
                 cleanup; exit 1
@@ -265,9 +285,11 @@ function add_none() {
 
 }
 
-
+# Run main functions
 prepare_dictionary
 spell_check
 add_words_to_dict
+
+fi #GIT_PRECOMMIT_CHECK_SPELLING
 
 

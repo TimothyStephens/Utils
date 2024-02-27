@@ -76,6 +76,15 @@ set -- "${POSITIONAL[@]}" # restore positional parameters
 ##################################
 ##################################
 
+# Check aspell (which this script is built upon) is in path.
+if ! command -v aspell &> /dev/null
+then
+  echo "aspell could not be found. If root, please run"
+  echo "apt-get install -y aspell"
+  exit 1
+fi
+
+
 # Code based on https://github.com/mprpic/git-spell-check
 #
 # The following is a text file that represents your custom dictionary; edit as necessary. Add words to it that you wish

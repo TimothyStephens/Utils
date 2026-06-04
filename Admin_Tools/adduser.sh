@@ -11,6 +11,7 @@ echo -e 'Adding user $username\n'
 
 adduser $username
 adduser $username DBlab
+adduser $username shared
 usermod -g DBlab $username
 
 mkdir /scratch/$username
